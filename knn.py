@@ -8,13 +8,12 @@
 时间：2020-04-08
 """
 
+import json
 # %%
 import os
-import random
-import json
+
 import cv2
 import numpy as np
-import array
 
 # %%
 train_data_path = os.path.join(".", "Corel-1000", "train")
@@ -208,23 +207,46 @@ def get_features(img):
     fea[13], fea[14], fea[15], fea[16] = get_9_24(img_gray, 45)
     fea[17], fea[18], fea[19], fea[20] = get_9_24(img_gray, 90)
     fea[21], fea[22], fea[23], fea[24] = get_9_24(img_gray, 135)
-
     return fea
 
 
+# # %%
+# train_data_features = {}
+# for category in categories:
+#     tmp_path = os.path.join(train_data_path, category)
+#     _, _, imgs = next(os.walk(tmp_path))
+#     cur_img_fea = []
+#     for img in imgs:
+#         print(img)
+#         targets = os.path.join(tmp_path, img)
+#         img = cv2.imread(targets)
+#         cur_img_fea.append(get_features(img).tolist())
+#     train_data_features[category] = cur_img_fea
+#
+# # %%
+# with open("./train_data_features.json", 'w') as file:
+#     json.dump(train_data_features, file)
+
 # %%
-train_data_features = {}
+with open("./train_data_features.json", 'r') as file:
+    train_data_features = json.load(file)
+
+
+# %%
+# 将数据进行归一化处理
+train_data_features_max = np.full((25), -np.inf)
+train_data_features_min = np.full((25), np.inf)
 for category in categories:
-    tmp_path = os.path.join(train_data_path, category)
-    _, _, imgs = next(os.walk(tmp_path))
-    cur_img_fea = []
-    for img in imgs:
-        print(img)
-        targets = os.path.join(tmp_path, img)
-        img = cv2.imread(targets)
-        cur_img_fea.append(get_features(img))
-    train_data_features[category] = cur_img_fea.tolist()
-json.dump(train_data_features, "./train_data_features")
+    tmp = train_data_features_max >= np.array(train_data_features[category]).max(axis=0)
+    train_data_features_max = tmp * train_data_features_max + (~tmp) * np.array(train_data_features[category]).max(
+        axis=0)
+    train_data_features_min = tmp * np.array(train_data_features[category]).min(axis=0) + (
+        ~tmp) * train_data_features_min
+for category in categories:
+    train_data_features_tmp = np.array(train_data_features[category])
+    train_data_features_tmp = (train_data_features_tmp - train_data_features_min) / (
+            train_data_features_max - train_data_features_min)
+    train_data_features[category] = train_data_features_tmp.tolist()
 
 
 # %%
